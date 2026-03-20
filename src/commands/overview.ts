@@ -47,6 +47,18 @@ export async function runOverview(options: { days: number }): Promise<void> {
   console.log(
     treeItem("Tool calls", chalk.bold(String(data.totalToolCalls)))
   );
+
+  // Token 统计
+  if (data.totalInputTokens > 0 || data.totalOutputTokens > 0) {
+    const totalTokens = data.totalInputTokens + data.totalOutputTokens;
+    console.log(
+      treeItem(
+        "Tokens",
+        `${chalk.bold(formatNumber(totalTokens))} total (${formatNumber(data.totalInputTokens)} in / ${formatNumber(data.totalOutputTokens)} out)`
+      )
+    );
+  }
+
   console.log(
     treeItem("Data scanned", formatBytes(data.totalBytes), true)
   );
@@ -117,6 +129,12 @@ export async function runOverview(options: { days: number }): Promise<void> {
 }
 
 // ── Helpers ──
+
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
 
 function restoreProjectPath(encoded: string): string {
   // -Users-grluo-Documents-Magic-vibe-island → ~/vibe-island

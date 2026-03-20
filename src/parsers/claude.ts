@@ -17,6 +17,8 @@ export interface ClaudeSession {
   userMessages: number;
   assistantMessages: number;
   toolCalls: string[];
+  inputTokens: number;
+  outputTokens: number;
   fileSizeBytes: number;
   firstTimestamp: Date | null;
   lastTimestamp: Date | null;
@@ -29,20 +31,31 @@ export interface ClaudeOverview {
   totalUserMessages: number;
   totalAssistantMessages: number;
   totalToolCalls: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
   toolBreakdown: Map<string, number>;
   projectBreakdown: Map<string, number>;
   sessions: ClaudeSession[];
   totalBytes: number;
 }
 
+interface ContentBlock {
+  type: string;
+  name?: string;
+  text?: string;
+  id?: string;
+}
+
 interface JsonlLine {
   type?: string;
   timestamp?: string;
   message?: {
-    content?: string | Array<{ type: string; text?: string }>;
+    content?: string | ContentBlock[];
+    usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
+    };
   };
-  toolName?: string;
-  tool_name?: string;
   title?: string;
   summary?: string;
 }
@@ -62,6 +75,8 @@ export async function parseClaudeSessions(
     totalUserMessages: 0,
     totalAssistantMessages: 0,
     totalToolCalls: 0,
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
     toolBreakdown: new Map(),
     projectBreakdown: new Map(),
     sessions: [],
@@ -122,6 +137,8 @@ export async function parseClaudeSessions(
     overview.totalUserMessages += s.userMessages;
     overview.totalAssistantMessages += s.assistantMessages;
     overview.totalToolCalls += s.toolCalls.length;
+    overview.totalInputTokens += s.inputTokens;
+    overview.totalOutputTokens += s.outputTokens;
     overview.totalBytes += s.fileSizeBytes;
 
     for (const tool of s.toolCalls) {
@@ -158,6 +175,8 @@ async function parseSessionFile(
     userMessages: 0,
     assistantMessages: 0,
     toolCalls: [],
+    inputTokens: 0,
+    outputTokens: 0,
     fileSizeBytes: fileSize,
     firstTimestamp: null,
     lastTimestamp: null,
@@ -211,15 +230,28 @@ async function parseSessionFile(
         session.userMessages++;
         session.messageCount++;
         break;
-      case "assistant":
+      case "assistant": {
         session.assistantMessages++;
         session.messageCount++;
-        break;
-      case "tool_use":
-        if (parsed.toolName || parsed.tool_name) {
-          session.toolCalls.push(parsed.toolName ?? parsed.tool_name ?? "unknown");
+
+        // 提取 token 使用量
+        const usage = parsed.message?.usage;
+        if (usage) {
+          session.inputTokens += usage.input_tokens ?? 0;
+          session.outputTokens += usage.output_tokens ?? 0;
+        }
+
+        // 从 content blocks 提取 tool_use
+        const content = parsed.message?.content;
+        if (Array.isArray(content)) {
+          for (const block of content) {
+            if (block.type === "tool_use" && block.name) {
+              session.toolCalls.push(block.name);
+            }
+          }
         }
         break;
+      }
       case "custom-title":
         if (parsed.title) session.customTitle = parsed.title;
         break;

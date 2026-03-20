@@ -1,10 +1,10 @@
 {
-  "name": "vibeusage",
+  "name": "vusage",
   "version": "0.1.0",
   "description": "Know your AI coding habits. Usage insights for Claude Code, Codex, and more.",
   "type": "module",
   "bin": {
-    "vibeusage": "./dist/cli.js"
+    "vusage": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
