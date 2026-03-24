@@ -2,6 +2,8 @@
 
 > Know your AI coding habits. Usage insights for Claude Code, Codex, and more.
 
+**[vibeusage.com](https://vibeusage.com)** · **[npm](https://www.npmjs.com/package/vusage)**
+
 **VibeUsage** analyzes your local AI coding session data and provides actionable insights — not just how much you've used, but how to use it smarter.
 
 ## Quick Start
@@ -97,7 +99,7 @@ VibeUsage reads your **local** AI coding data. Nothing is uploaded or shared.
 ## Related
 
 - **[ccusage](https://github.com/ryoppippi/ccusage)** — Excellent tool for retrospective cost analysis. VibeUsage focuses on real-time monitoring and actionable insights.
-- **[Vibe Island](https://vibe-island.com)** — macOS Notch panel for Claude Code, Codex, Gemini CLI. Real-time status, permission approval, terminal jump. By the same author.
+- **[Vibe Island](https://vibeisland.app)** — macOS Notch panel for Claude Code, Codex, Gemini CLI. Real-time status, permission approval, terminal jump. By the same author.
 
 ## License
 
