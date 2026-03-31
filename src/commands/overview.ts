@@ -3,6 +3,7 @@
 
 import chalk from "chalk";
 import { parseClaudeSessions } from "../parsers/claude.js";
+import { estimateCost, formatUSD, modelDisplayName } from "../pricing.js";
 import {
   headerBox,
   sectionHeader,
@@ -48,20 +49,68 @@ export async function runOverview(options: { days: number }): Promise<void> {
     treeItem("Tool calls", chalk.bold(String(data.totalToolCalls)))
   );
 
-  // Token 统计
+  // Token 统计（含 cache 拆分）
   if (data.totalInputTokens > 0 || data.totalOutputTokens > 0) {
-    const totalTokens = data.totalInputTokens + data.totalOutputTokens;
+    const parts = [
+      `${formatNumber(data.totalOutputTokens)} out`,
+      `${formatNumber(data.totalInputTokens)} in`,
+    ];
+    if (data.totalCacheCreationTokens > 0)
+      parts.push(`${formatNumber(data.totalCacheCreationTokens)} cache↑`);
+    if (data.totalCacheReadTokens > 0)
+      parts.push(`${formatNumber(data.totalCacheReadTokens)} cache↓`);
+
     console.log(
-      treeItem(
-        "Tokens",
-        `${chalk.bold(formatNumber(totalTokens))} total (${formatNumber(data.totalInputTokens)} in / ${formatNumber(data.totalOutputTokens)} out)`
-      )
+      treeItem("Tokens", parts.join(chalk.dim(" · ")))
+    );
+  }
+
+  // 费用估算（逐 session 按模型计价后求和，避免混合模型定价偏差）
+  let totalCostAmount = 0;
+  for (const s of data.sessions) {
+    let primaryModel = "unknown";
+    let bestCount = 0;
+    for (const [m, c] of s.modelBreakdown) {
+      if (c > bestCount) { primaryModel = m; bestCount = c; }
+    }
+    totalCostAmount += estimateCost(primaryModel, {
+      inputTokens: s.inputTokens,
+      outputTokens: s.outputTokens,
+      cacheCreationTokens: s.cacheCreationTokens,
+      cacheReadTokens: s.cacheReadTokens,
+    }).total;
+  }
+  if (totalCostAmount > 0) {
+    console.log(
+      treeItem("Est. cost", `${chalk.green(formatUSD(totalCostAmount))} ${chalk.dim("API-eq.")}`)
     );
   }
 
   console.log(
     treeItem("Data scanned", formatBytes(data.totalBytes), true)
   );
+
+  // ── Model Breakdown ──
+  if (data.modelBreakdown.size > 0) {
+    // 过滤掉 <synthetic> 和 unknown
+    const models = sortedEntries(data.modelBreakdown)
+      .filter(([m]) => m !== "<synthetic>" && m !== "unknown");
+
+    if (models.length > 1) {
+      console.log(sectionHeader("Models Used"));
+      models.forEach(([model, count], i) => {
+        const name = modelDisplayName(model);
+        const isLast = i === models.length - 1;
+        console.log(
+          treeItem(
+            name.padEnd(12),
+            `${chalk.bold(String(count))} messages`,
+            isLast
+          )
+        );
+      });
+    }
+  }
 
   // ── Top Tools ──
   if (data.toolBreakdown.size > 0) {

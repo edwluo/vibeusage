@@ -19,10 +19,13 @@ export interface ClaudeSession {
   toolCalls: string[];
   inputTokens: number;
   outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
   fileSizeBytes: number;
   firstTimestamp: Date | null;
   lastTimestamp: Date | null;
   customTitle: string | null;
+  modelBreakdown: Map<string, number>; // model → message count
 }
 
 export interface ClaudeOverview {
@@ -33,8 +36,11 @@ export interface ClaudeOverview {
   totalToolCalls: number;
   totalInputTokens: number;
   totalOutputTokens: number;
+  totalCacheCreationTokens: number;
+  totalCacheReadTokens: number;
   toolBreakdown: Map<string, number>;
   projectBreakdown: Map<string, number>;
+  modelBreakdown: Map<string, number>; // model → message count
   sessions: ClaudeSession[];
   totalBytes: number;
 }
@@ -50,10 +56,13 @@ interface JsonlLine {
   type?: string;
   timestamp?: string;
   message?: {
+    model?: string;
     content?: string | ContentBlock[];
     usage?: {
       input_tokens?: number;
       output_tokens?: number;
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
     };
   };
   title?: string;
@@ -77,8 +86,11 @@ export async function parseClaudeSessions(
     totalToolCalls: 0,
     totalInputTokens: 0,
     totalOutputTokens: 0,
+    totalCacheCreationTokens: 0,
+    totalCacheReadTokens: 0,
     toolBreakdown: new Map(),
     projectBreakdown: new Map(),
+    modelBreakdown: new Map(),
     sessions: [],
     totalBytes: 0,
   };
@@ -139,12 +151,21 @@ export async function parseClaudeSessions(
     overview.totalToolCalls += s.toolCalls.length;
     overview.totalInputTokens += s.inputTokens;
     overview.totalOutputTokens += s.outputTokens;
+    overview.totalCacheCreationTokens += s.cacheCreationTokens;
+    overview.totalCacheReadTokens += s.cacheReadTokens;
     overview.totalBytes += s.fileSizeBytes;
 
     for (const tool of s.toolCalls) {
       overview.toolBreakdown.set(
         tool,
         (overview.toolBreakdown.get(tool) ?? 0) + 1
+      );
+    }
+
+    for (const [model, count] of s.modelBreakdown) {
+      overview.modelBreakdown.set(
+        model,
+        (overview.modelBreakdown.get(model) ?? 0) + count
       );
     }
 
@@ -177,10 +198,13 @@ async function parseSessionFile(
     toolCalls: [],
     inputTokens: 0,
     outputTokens: 0,
+    cacheCreationTokens: 0,
+    cacheReadTokens: 0,
     fileSizeBytes: fileSize,
     firstTimestamp: null,
     lastTimestamp: null,
     customTitle: null,
+    modelBreakdown: new Map(),
   };
 
   // 超大文件只读尾部 256KB
@@ -234,11 +258,23 @@ async function parseSessionFile(
         session.assistantMessages++;
         session.messageCount++;
 
-        // 提取 token 使用量
+        // 模型追踪（跳过合成消息）
+        const model = parsed.message?.model;
+        if (model && model !== "<synthetic>") {
+          session.modelBreakdown.set(
+            model,
+            (session.modelBreakdown.get(model) ?? 0) + 1
+          );
+        }
+
+        // 提取 token 使用量（含 cache 拆分）
         const usage = parsed.message?.usage;
         if (usage) {
           session.inputTokens += usage.input_tokens ?? 0;
           session.outputTokens += usage.output_tokens ?? 0;
+          session.cacheCreationTokens +=
+            usage.cache_creation_input_tokens ?? 0;
+          session.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
         }
 
         // 从 content blocks 提取 tool_use
