@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { runOverview } from "./commands/overview.js";
 import { runLimits } from "./commands/limits.js";
 import { runCost } from "./commands/cost.js";
+import { runDashboard } from "./commands/dashboard.js";
 
 const program = new Command();
 
@@ -24,6 +25,17 @@ program
   .action(async (options) => {
     const days = parseInt(options.days, 10) || 7;
     await runOverview({ days });
+  });
+
+// ── dashboard 命令 ──
+program
+  .command("dashboard")
+  .alias("d")
+  .description("Visual dashboard with activity heatmap, sparklines, and cost trends")
+  .option("-d, --days <number>", "Number of days to look back", "14")
+  .action(async (options) => {
+    const days = parseInt(options.days, 10) || 14;
+    await runDashboard({ days });
   });
 
 // ── cost 命令 ──
