@@ -32,7 +32,7 @@ program
   .command("dashboard")
   .alias("d")
   .description("Visual dashboard with activity heatmap, sparklines, and cost trends")
-  .option("-d, --days <number>", "Number of days to look back", "14")
+  .option("-d, --days <number>", "Number of days to look back", "30")
   .action(async (options) => {
     const days = parseInt(options.days, 10) || 14;
     await runDashboard({ days });

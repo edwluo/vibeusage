@@ -16,13 +16,22 @@ import {
 // Sparkline 块（8 级高度）
 const SPARK = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
 
-// Heatmap 色阶（5 级，GitHub contribution 风格）
+// 颜色：用 hex 绕过终端主题覆盖（ANSI green 常被改成白色）
+const C = {
+  green: chalk.hex("#26a641"),
+  greenBright: chalk.hex("#39d353"),
+  cyan: chalk.hex("#58a6ff"),
+  cost: chalk.hex("#3fb950"),
+  dimGreen: chalk.hex("#0e4429"),
+};
+
+// Heatmap 色阶（5 级，GitHub contribution 精确色值）
 const HEAT_COLORS = [
-  (s: string) => chalk.dim(s),            // 0: 无活动
-  (s: string) => chalk.green.dim(s),      // 1: 低
-  (s: string) => chalk.green(s),          // 2: 中
-  (s: string) => chalk.greenBright(s),    // 3: 高
-  (s: string) => chalk.bold.greenBright(s), // 4: 峰值
+  (s: string) => chalk.hex("#30363d")(s),   // 0: 无活动
+  (s: string) => chalk.hex("#0e4429")(s),   // 1: 低
+  (s: string) => chalk.hex("#006d32")(s),   // 2: 中
+  (s: string) => chalk.hex("#26a641")(s),   // 3: 高
+  (s: string) => chalk.hex("#39d353")(s),   // 4: 峰值
 ];
 
 export async function runDashboard(options: {
@@ -96,7 +105,7 @@ export async function runDashboard(options: {
 
   // ── 核心指标（一行四列）──
   const metrics = [
-    { label: "COST", value: chalk.bold.green(formatUSD(totalCost)) },
+    { label: "COST", value: chalk.bold(C.cost(formatUSD(totalCost))) },
     { label: "SESSIONS", value: chalk.bold.white(String(data.totalSessions)) },
     { label: "MESSAGES", value: chalk.bold.white(formatCompact(data.totalMessages)) },
     { label: "TOOLS", value: chalk.bold.white(formatCompact(data.totalToolCalls)) },
@@ -115,10 +124,10 @@ export async function runDashboard(options: {
 
   console.log(chalk.dim("  Cost Trend"));
   console.log(
-    `  ${sparkline(costValues, chalk.green)}  ${chalk.dim("daily cost")}`
+    `  ${sparkline(costValues, C.green)}  ${chalk.dim("daily cost")}`
   );
   console.log(
-    `  ${sparkline(sessionValues, chalk.cyan)}  ${chalk.dim("sessions")}`
+    `  ${sparkline(sessionValues, C.cyan)}  ${chalk.dim("sessions")}`
   );
 
   // 日期标签（首尾 + 中间均匀分布）
@@ -159,7 +168,7 @@ export async function runDashboard(options: {
       const pct =
         totalCost > 0 ? Math.round((m.cost / totalCost) * 100) : 0;
       const barW = Math.max(1, Math.round((m.cost / maxModelCost) * 20));
-      const bar = chalk.green("█".repeat(barW));
+      const bar = C.green("█".repeat(barW));
       console.log(
         `  ${chalk.white(m.name.padEnd(8))} ${bar} ${chalk.bold(formatUSD(m.cost))} ${chalk.dim(`(${pct}%)  ${m.messages} msgs`)}`
       );
@@ -176,7 +185,7 @@ export async function runDashboard(options: {
     console.log(chalk.dim("  Top Tools"));
     for (const [tool, count] of topTools) {
       const barW = Math.max(1, Math.round((count / maxTool) * 15));
-      const bar = chalk.cyan("█".repeat(barW));
+      const bar = C.cyan("█".repeat(barW));
       console.log(
         `  ${chalk.dim(tool.padEnd(10))} ${bar} ${chalk.bold(String(count))}`
       );
@@ -195,7 +204,7 @@ export async function runDashboard(options: {
 
 function sparkline(
   values: number[],
-  color: typeof chalk.green
+  color: (s: string) => string
 ): string {
   if (values.length === 0) return "";
   const max = Math.max(...values);
